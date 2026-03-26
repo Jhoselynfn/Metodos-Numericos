@@ -1,94 +1,217 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-<title>Portafolio Métodos Numéricos</title>
-<meta charset="UTF-8">
-<style>
-
-body{
-font-family: Arial;
-background:#f2f2f2;
-margin:0;
-}
-
-header{
-background:#003366;
-color:white;
-padding:20px;
-text-align:center;
-}
-
-nav{
-background:#0055aa;
-padding:10px;
-text-align:center;
-}
-
-nav a{
-color:white;
-margin:15px;
-text-decoration:none;
-font-weight:bold;
-}
-
-section{
-background:white;
-margin:20px;
-padding:20px;
-border-radius:10px;
-}
-
-footer{
-background:#003366;
-color:white;
-text-align:center;
-padding:10px;
-}
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Factorización LU</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .matrix-input { width: 60px; text-align: center; border: 1px solid #ccc; border-radius: 4px; padding: 4px; }
+        .result-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-top: 20px; }
+        .matrix-display { font-family: 'Courier New', Courier, monospace; line-height: 1.5; }
+    </style>
 </head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center border-b pb-4">Calculadora de Sistemas LU (Máx 6x6)</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div>
+                <label class="block text-sm font-semibold mb-2">Dimensión (n):</label>
+                <input type="number" id="dim" value="3" min="2" max="6" class="w-full p-2 border rounded" onchange="generateGrid()">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold mb-2">Método:</label>
+                <select id="method" class="w-full p-2 border rounded">
+                    <option value="doolittle">Doolittle (Lii = 1)</option>
+                    <option value="crout">Crout (Uii = 1)</option>
+                    <option value="cholesky">Cholesky (L = Ut)</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button onclick="calculate()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition">
+                    Resolver Sistema
+                </button>
+            </div>
+        </div>
 
-<body>
+        <div class="overflow-x-auto mb-6">
+            <h2 class="text-lg font-semibold mb-3">Matriz A | Vector b</h2>
+            <div id="matrix-container" class="inline-block p-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <!-- Se genera dinámicamente -->
+            </div>
+        </div>
 
-<header>
-<h1>Portafolio de Métodos Numéricos</h1>
-<p>Jhoselyn Daniela Flores Ninachoque</p>
-</header>
+        <div id="results" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="result-box">
+                    <h3 class="font-bold text-blue-700 mb-2 underline">Matriz L (Lower)</h3>
+                    <div id="display-L" class="matrix-display"></div>
+                </div>
+                <div class="result-box">
+                    <h3 class="font-bold text-green-700 mb-2 underline">Matriz U (Upper)</h3>
+                    <div id="display-U" class="matrix-display"></div>
+                </div>
+            </div>
 
-<nav>
-<a href="#inicio">Inicio</a>
-<a href="#modelo">Modelo Matemático</a>
-<a href="#error">Errores</a>
-<a href="#metodos">Métodos</a>
-</nav>
+            <div class="result-box bg-blue-50 border-blue-200">
+                <h3 class="font-bold text-blue-800 mb-2">Solución del Sistema (x)</h3>
+                <div id="display-X" class="text-xl font-mono font-bold text-center py-2"></div>
+            </div>
 
-<section id="inicio">
-<h2>Introducción</h2>
-<p>Esta página web contiene las actividades realizadas en la materia de Métodos Numéricos.</p>
-</section>
+            <div id="steps" class="mt-6 p-4 bg-yellow-50 rounded border border-yellow-200 text-sm italic text-gray-700">
+                <!-- Logs de errores o notas -->
+            </div>
+        </div>
+    </div>
 
-<section id="modelo">
-<h2>Modelo Matemático</h2>
-<p>Un modelo matemático representa un fenómeno real mediante ecuaciones.</p>
-<p>Ejemplo: d = v × t</p>
-</section>
+    <script>
+        function generateGrid() {
+            const n = parseInt(document.getElementById('dim').value);
+            const container = document.getElementById('matrix-container');
+            container.innerHTML = '';
+            
+            const table = document.createElement('table');
+            table.className = "mx-auto";
+            
+            for (let i = 0; i < n; i++) {
+                const tr = document.createElement('tr');
+                for (let j = 0; j < n; j++) {
+                    const td = document.createElement('td');
+                    td.innerHTML = `<input type="number" id="a_${i}_${j}" class="matrix-input m-1" value="0">`;
+                    tr.appendChild(td);
+                }
+                // Separador visual para b
+                const tdSep = document.createElement('td');
+                tdSep.className = "px-4 font-bold border-l-2 border-gray-400";
+                tdSep.innerText = "|";
+                tr.appendChild(tdSep);
 
-<section id="error">
-<h2>Error Absoluto y Relativo</h2>
-<p>Error absoluto = |valor real - valor aproximado|</p>
-<p>Error relativo = error absoluto / valor real</p>
-</section>
+                const tdB = document.createElement('td');
+                tdB.innerHTML = `<input type="number" id="b_${i}" class="matrix-input m-1 bg-blue-50" value="0">`;
+                tr.appendChild(tdB);
+                
+                table.appendChild(tr);
+            }
+            container.appendChild(table);
+            
+            // Cargar datos del ejemplo 2 por defecto si es 3x3
+            if(n === 3) {
+                const example = [[8,4,-1,11],[-2,5,1,4],[2,-1,6,7]];
+                for(let i=0; i<3; i++){
+                    for(let j=0; j<3; j++) document.getElementById(`a_${i}_${j}`).value = example[i][j];
+                    document.getElementById(`b_${i}`).value = example[i][3];
+                }
+            }
+        }
 
-<section id="metodos">
-<h2>Métodos Numéricos</h2>
-<p>Método de Bisección</p>
-<p>Método de Newton Raphson</p>
-<p>Método de la Secante</p>
-</section>
+        function calculate() {
+            const n = parseInt(document.getElementById('dim').value);
+            const method = document.getElementById('method').value;
+            const stepsDiv = document.getElementById('steps');
+            stepsDiv.innerHTML = '';
+            
+            // Leer matriz A y vector B
+            let A = Array.from({ length: n }, (_, i) => 
+                Array.from({ length: n }, (_, j) => parseFloat(document.getElementById(`a_${i}_${j}`).value || 0))
+            );
+            let B = Array.from({ length: n }, (_, i) => parseFloat(document.getElementById(`b_${i}`).value || 0));
 
-<footer>
-<p>Universidad Mayor de San Andrés - 2026</p>
-</footer>
+            let L = Array.from({ length: n }, () => Array(n).fill(0));
+            let U = Array.from({ length: n }, () => Array(n).fill(0));
 
+            try {
+                if (method === 'cholesky') {
+                    // Validar simetría básica
+                    for(let i=0; i<n; i++) for(let j=0; j<n; j++) if(A[i][j] !== A[j][i]) throw "La matriz no es simétrica. Cholesky requiere simetría.";
+                    
+                    for (let i = 0; i < n; i++) {
+                        for (let j = 0; j <= i; j++) {
+                            let sum = 0;
+                            for (let k = 0; k < j; k++) sum += L[i][k] * L[j][k];
+                            if (i === j) {
+                                let val = A[i][i] - sum;
+                                if(val < 0) throw "La matriz no es definida positiva (Raíz negativa).";
+                                L[i][j] = Math.sqrt(val);
+                            } else {
+                                L[i][j] = (1.0 / L[j][j] * (A[i][j] - sum));
+                            }
+                        }
+                    }
+                    // U es L transpuesta
+                    for(let i=0; i<n; i++) for(let j=0; j<n; j++) U[i][j] = L[j][i];
+
+                } else if (method === 'doolittle') {
+                    for (let i = 0; i < n; i++) {
+                        // Upper
+                        for (let k = i; k < n; k++) {
+                            let sum = 0;
+                            for (let j = 0; j < i; j++) sum += (L[i][j] * U[j][k]);
+                            U[i][k] = A[i][k] - sum;
+                        }
+                        // Lower
+                        for (let k = i; k < n; k++) {
+                            if (i === k) L[i][i] = 1;
+                            else {
+                                let sum = 0;
+                                for (let j = 0; j < i; j++) sum += (L[k][j] * U[j][i]);
+                                if(U[i][i] === 0) throw "Error: División por cero en diagonal de U.";
+                                L[k][i] = (A[k][i] - sum) / U[i][i];
+                            }
+                        }
+                    }
+                } else if (method === 'crout') {
+                    for (let j = 0; j < n; j++) {
+                        U[j][j] = 1;
+                        for (let i = j; i < n; i++) {
+                            let sum = 0;
+                            for (let k = 0; k < j; k++) sum += L[i][k] * U[k][j];
+                            L[i][j] = A[i][j] - sum;
+                        }
+                        for (let i = j + 1; i < n; i++) {
+                            let sum = 0;
+                            for (let k = 0; k < j; k++) sum += L[j][k] * U[k][i];
+                            if(L[j][j] === 0) throw "Error: División por cero en diagonal de L.";
+                            U[j][i] = (A[j][i] - sum) / L[j][j];
+                        }
+                    }
+                }
+
+                // Resolver Ly = B (Sustitución progresiva)
+                let Y = new Array(n).fill(0);
+                for (let i = 0; i < n; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < i; j++) sum += L[i][j] * Y[j];
+                    Y[i] = (B[i] - sum) / L[i][i];
+                }
+
+                // Resolver Ux = Y (Sustitución regresiva)
+                let X = new Array(n).fill(0);
+                for (let i = n - 1; i >= 0; i--) {
+                    let sum = 0;
+                    for (let j = i + 1; j < n; j++) sum += U[i][j] * X[j];
+                    X[i] = (Y[i] - sum) / U[i][i];
+                }
+
+                displayResults(L, U, X);
+
+            } catch (err) {
+                stepsDiv.innerHTML = `<span class="text-red-600 font-bold">Error: ${err}</span>`;
+                document.getElementById('results').classList.add('hidden');
+            }
+        }
+
+        function displayResults(L, U, X) {
+            document.getElementById('results').classList.remove('hidden');
+            const formatM = (mat) => mat.map(row => row.map(v => v.toFixed(4).padStart(8)).join("  ")).join("<br>");
+            
+            document.getElementById('display-L').innerHTML = formatM(L);
+            document.getElementById('display-U').innerHTML = formatM(U);
+            document.getElementById('display-X').innerHTML = X.map((v, i) => `x<sub>${i+1}</sub> = ${v.toFixed(4)}`).join(" | ");
+        }
+
+        // Init
+        window.onload = generateGrid;
+    </script>
 </body>
 </html>
